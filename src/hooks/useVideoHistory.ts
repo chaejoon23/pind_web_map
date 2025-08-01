@@ -26,6 +26,7 @@ interface ApiVideoHistory {
   }>;
 }
 
+//상태관리 훅
 export const useVideoHistory = () => {
   const [videoHistory, setVideoHistory] = useState<VideoHistory[]>([]);
   const [isLoading, setIsLoading] = useState(false);
