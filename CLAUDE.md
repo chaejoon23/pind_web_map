@@ -57,13 +57,43 @@ This is a React + TypeScript + Vite + Tailwind CSS application that extracts loc
 
 **Backend API Integration:**
 
-- **Authenticated**: Uses `/api/v1/youtube/process` with JWT token
-- **Guest Mode**: Uses `/api/v1/youtube/without-login/process` endpoint
-- Expects `{ url: string }` payload with YouTube URL
-- Returns `{ mode: "db"|"new", places: Array<{name, lat, lng}> }` response
-- Backend server URL configured via `VITE_BACKEND_URL` environment variable
-- CORS is configured in backend to allow frontend requests
-- All API endpoints centralized in `src/config/env.ts`
+- **Server URL**: Default `http://localhost:9001` (configured via `VITE_BACKEND_URL`)
+- **API Base Path**: `/api/v1/youtube` for YouTube endpoints, `/auth` for authentication
+- **Authentication**: JWT Bearer token authentication for protected endpoints
+- **CORS**: Configured to allow frontend requests during development
+
+**Available Endpoints:**
+
+**YouTube Processing:**
+- `POST /api/v1/youtube/process` (🔒 인증 필요)
+  - 로그인 사용자용 YouTube URL 처리 및 히스토리 기록
+  - Request: `{ url: string }`
+  - Response: `{ mode: "db"|"new", places: Array<{name, lat?, lng?}> }`
+  
+- `POST /api/v1/youtube/without-login/process` (🌐 공개)
+  - 게스트 사용자용 YouTube URL 처리 (히스토리 기록 없음)
+  - Request: `{ url: string }`
+  - Response: `{ mode: "db"|"new", places: Array<{name, lat?, lng?}> }`
+
+- `GET /api/v1/youtube/history` (🔒 인증 필요)
+  - 사용자 콘텐츠 기록 조회 (상세 정보 포함)
+  - Response: `Array<{ id, title?, created_at, thumbnail_url?, youtube_url?, places }>`
+
+- `GET /api/v1/youtube/places/{video_id}` (🌐 공개)
+  - 특정 비디오의 장소 정보 조회
+  - Response: `Array<{name, lat?, lng?}>`
+
+**Authentication:**
+- `POST /auth/register` - 사용자 등록
+- `POST /auth/login` - 로그인 (JWT 토큰 반환)
+- `POST /auth/request-password-reset` - 비밀번호 재설정 요청
+- `POST /auth/reset-password` - 비밀번호 재설정
+
+**Response Schemas:**
+- **ApiVideoHistory**: `{ id: string, title?: string, created_at: datetime, thumbnail_url?: url, youtube_url?: url, places: Place[] }`
+- **Place**: `{ name: string, lat?: number, lng?: number }`
+- **PlaceResponse**: `{ mode: "db"|"new", places: Place[] }`
+
 - **Extension Integration**: Receives location data via URL parameters
 
 ### Key Components
@@ -75,7 +105,9 @@ This is a React + TypeScript + Vite + Tailwind CSS application that extracts loc
 - Handles both authenticated and guest mode URL processing
 - Displays authentication status and user information
 - Features sidebar with URL input and location list, main area with map
-- Integrates with browser extension via URL parameters
+- **Video History Integration**: Uses `useVideoHistory` hook for user history management
+- **Extension Integration**: Receives location data via URL parameters and processes authentication tokens
+- **Auto-login**: Automatically processes authentication tokens from extension
 
 **AuthModal.tsx** (Authentication interface)
 
@@ -97,6 +129,14 @@ This is a React + TypeScript + Vite + Tailwind CSS application that extracts loc
 - Persistent login state via localStorage
 - Login, register, and logout functionality
 
+**useVideoHistory** (Video history management)
+
+- Fetches and manages user's video processing history
+- Integrates with backend `/api/v1/youtube/history` endpoint
+- Provides loading states and error handling
+- Returns video metadata with associated location data
+- Automatically refreshes when authentication state changes
+
 **MapComponent.tsx** (Google Maps integration)
 
 - Uses `@vis.gl/react-google-maps` library with Tailwind styling
@@ -104,10 +144,13 @@ This is a React + TypeScript + Vite + Tailwind CSS application that extracts loc
 - Renders markers for all valid locations with map controls
 - Enhanced empty states and visual improvements
 
-**types.ts**
+**types.ts & API Types**
 
-- Defines Location type with required lat/lng coordinates
-- Backend API types defined in App.tsx for YouTube processing
+- **Location**: `{ name: string, lat: number, lng: number }` - Frontend location type with required coordinates
+- **VideoHistory**: `{ id: string, title?: string, created_at: string, thumbnail_url?: string, youtube_url?: string, places: Location[] }` - Video history with metadata
+- **PlaceResponse**: Backend API response for YouTube processing
+- **URLRequest**: Backend API request for YouTube URL processing
+- **AuthTypes**: User registration, login, and password reset schemas
 
 ### Environment Configuration
 
@@ -137,12 +180,19 @@ cp .env.example .env
 
 **Backend Dependencies:**
 
-- Requires running `pind_server` FastAPI backend (URL configured in .env)
-- Backend processes YouTube URLs and extracts location data using AI/NLP
-- **Authentication Integration**: Full JWT-based authentication system
-- Supports both authenticated and guest modes
-- CORS properly configured for development
-- Server address can be changed by updating `VITE_BACKEND_URL` in .env file
+- **Server**: Requires running `pind_server` FastAPI backend
+- **Configuration**: Server URL configured via `VITE_BACKEND_URL` environment variable (default: `http://localhost:9001`)
+- **Database**: SQLAlchemy ORM with SQLite/PostgreSQL database for user data and content history
+- **AI Processing**: Backend extracts location data from YouTube videos using AI/NLP
+- **Authentication**: JWT-based authentication with OAuth2PasswordBearer
+- **Features**:
+  - User registration and login system
+  - Password reset functionality via email
+  - Content history tracking for authenticated users  
+  - YouTube metadata extraction (title, thumbnail, URL)
+  - Location data caching to avoid reprocessing
+- **Development**: CORS configured for frontend development
+- **API Documentation**: Available at `http://localhost:9001/docs` (Swagger UI)
 
 **Browser Extension Integration:**
 
